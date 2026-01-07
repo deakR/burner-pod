@@ -1,0 +1,3 @@
+ui/** linguist-vendored
+ui/html/* linguist-vendored
+ui/static/* linguist-vendored

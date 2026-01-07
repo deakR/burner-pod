@@ -1,0 +1,14 @@
+# .air.toml - Windows Specific
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Explicitly use .exe for Windows
+cmd = "go build -o ./tmp/app.exe ./cmd/web"
+bin = "tmp/app.exe"
+
+# Watched files
+include_ext = ["go", "html"]
+# Ignored directories
+exclude_dir = ["tmp"]

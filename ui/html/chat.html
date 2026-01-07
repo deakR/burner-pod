@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Burner Pod - Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    
+    <style>
+        /* Default Desktop Style (The Big Banner) */
+        .room-header {
+            border: 1px solid #fff;
+            padding: 15px;
+            margin-bottom: 20px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .room-title {
+            margin: 0;
+            font-size: 2rem;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60%; /* Prevents text from hitting the key input */
+        }
+
+        .room-key-input {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 120px;
+            padding: 5px;
+            background: #000;
+            border: 1px solid #333;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        /* Mobile Style (Stacked & Clean) */
+        @media (max-width: 600px) {
+            .room-header {
+                flex-direction: column; /* Stack them vertical */
+                gap: 15px;
+                padding: 15px 10px;
+            }
+
+            .room-title {
+                font-size: 1.4rem; /* Smaller text */
+                white-space: normal; /* Allow wrapping */
+                word-break: break-all; /* Break long random IDs */
+                max-width: 100%;
+                position: static;
+            }
+
+            .room-key-input {
+                position: static; /* Stop floating */
+                transform: none;
+                width: 100%; /* Full width for easy tapping */
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container chat-container">
+        <div class="room-header">
+            <h1 id="room-title" class="room-title">Room</h1>
+            
+            <input type="password" id="room-key" class="room-key-input" placeholder="🔒 Secret Key">
+        </div>
+
+        <ul id="messages"></ul>
+
+        <form id="form" style="display: flex; gap: 10px; margin-bottom: 0;">
+            <input type="text" id="input" autocomplete="off" placeholder="Type a message..." required
+                style="margin-bottom: 0;">
+            <button style="width: auto; margin-bottom: 0;">Send</button>
+        </form>
+    </div>
+
+    <div id="expired-overlay">
+        <h1>Room Expired</h1>
+        <p>This conversation has self-destructed.</p>
+        <a href="/">
+            <button style="width: auto; padding: 15px 30px;">Back to Lobby</button>
+        </a>
+    </div>
+
+    <script>
+        /**
+         * Derives an AES-GCM encryption key from a password using PBKDF2.
+         * @param {string} password - The user's password/room key
+         * @returns {Promise<CryptoKey>} A 256-bit AES-GCM key for encryption/decryption
+         */
+        async function getKey(password) {
+            const enc = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
+            );
+            return window.crypto.subtle.deriveKey(
+                { name: "PBKDF2", salt: enc.encode("burner-salt"), iterations: 1000, hash: "SHA-256" },
+                keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+            );
+        }
+
+        /**
+         * Encrypts a text message using AES-GCM with a password-derived key.
+         * @param {string} text - The plain text message to encrypt
+         * @param {string} password - The encryption password/room key
+         * @returns {Promise<string>} Encrypted message prefixed with "ENC::" or original text if encryption fails
+         */
+        async function encryptMessage(text, password) {
+            try {
+                const key = await getKey(password);
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encoded = new TextEncoder().encode(text);
+                
+                const encrypted = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv }, key, encoded
+                );
+
+                const ivArr = Array.from(iv);
+                const encArr = Array.from(new Uint8Array(encrypted));
+                const package = { iv: ivArr, data: encArr };
+                return "ENC::" + JSON.stringify(package);
+            } catch (e) {
+                console.error("Encryption failed:", e);
+                return text;
+            }
+        }
+
+        /**
+         * Decrypts an encrypted message using the provided password.
+         * @param {string} cipherText - The encrypted message (should start with "ENC::")
+         * @param {string} password - The decryption password/room key
+         * @returns {Promise<string>} Decrypted text, or locked message indicator if password is wrong
+         */
+        async function decryptMessage(cipherText, password) {
+            if (!cipherText.startsWith("ENC::")) return cipherText;
+
+            try {
+                const raw = JSON.parse(cipherText.substring(5));
+                const key = await getKey(password);
+                const iv = new Uint8Array(raw.iv);
+                const data = new Uint8Array(raw.data);
+
+                const decrypted = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv }, key, data
+                );
+
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                return "🔒 <em>Encrypted Message (Wrong Key)</em>";
+            }
+        }
+
+        // Extract room name and username from URL query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomName = urlParams.get('room');
+        const username = urlParams.get('user') || "Anonymous";
+
+        if (!roomName) {
+            window.location.href = "/";
+        }
+
+        document.getElementById('room-title').innerText = `Room: ${roomName}`;
+        document.title = `Chat - ${roomName}`;
+
+        // Establish WebSocket connection with automatic protocol selection (ws/wss)
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+
+        const ws = new WebSocket(`${protocol}//${host}/ws/${roomName}?user=${encodeURIComponent(username)}`);
+
+        // Log successful WebSocket connection
+        ws.onopen = function (event) {
+            console.log("Connected to chat.");
+        };
+
+        /**
+         * Handles incoming messages from the WebSocket.
+         * Decrypts messages if a room key is set, renders markdown, and sanitizes HTML.
+         * System messages are displayed with special styling.
+         */
+        ws.onmessage = async function (event) {
+            const messages = document.getElementById('messages');
+            const data = JSON.parse(event.data);
+            const password = document.getElementById('room-key').value;
+
+            const messageItem = document.createElement('li');
+
+            if (data.username === "System") {
+                messageItem.innerHTML = `<div style="text-align: center; color: #666; font-size: 0.8em; font-style: italic; margin: 5px 0;">${data.text}</div>`;
+                messageItem.style.background = "transparent"; 
+                messageItem.style.border = "none";
+                messages.appendChild(messageItem);
+                window.scrollTo(0, document.body.scrollHeight);
+                return;
+            }
+
+            let displayText = data.text;
+            if (data.text.startsWith("ENC::")) {
+                 if (password) {
+                     displayText = await decryptMessage(data.text, password);
+                 } else {
+                     displayText = "🔒 <em>Encrypted Message</em>";
+                 }
+            }
+
+            const rawHtml = marked.parse(displayText);
+            const safeHtml = DOMPurify.sanitize(rawHtml);
+            const safeUsername = DOMPurify.sanitize(data.username);
+
+            messageItem.innerHTML = `<strong>${safeUsername}:</strong> ${safeHtml}`;
+            
+            const links = messageItem.querySelectorAll('a');
+            links.forEach(link => {
+                link.target = '_blank';
+                link.style.color = '#00ff00';
+            });
+
+            messages.appendChild(messageItem);
+            window.scrollTo(0, document.body.scrollHeight);
+        };
+
+        /**
+         * Handles WebSocket disconnection (room expiration or network issues).
+         * Displays overlay notification and disables the message input.
+         */
+        ws.onclose = function (event) {
+            console.log("Connection closed.");
+            document.getElementById('expired-overlay').style.display = 'flex';
+            document.querySelector('.chat-container').style.filter = 'blur(5px)';
+            document.getElementById('input').disabled = true;
+        };
+
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+
+        /**
+         * Handles message form submission.
+         * Encrypts the message if a room key is provided, then sends via WebSocket.
+         */
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const password = document.getElementById('room-key').value;
+            
+            let finalText = input.value;
+
+            if (password) {
+                finalText = await encryptMessage(finalText, password);
+            }
+
+            const msgObject = {
+                username: username,
+                text: finalText
+            };
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(msgObject));
+                input.value = '';
+            } else {
+                alert("Connection lost. Refresh the page.");
+            }
+        });
+    </script>
+</body>
+
+</html>
