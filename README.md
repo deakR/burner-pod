@@ -57,6 +57,15 @@ Burner Pod provides temporary conversations without permanence. No accounts, no 
 - Multiple users communicate until the room self-destructs
 - Join existing rooms with a room code or create a new one with customizable duration
 
+**🏠 Self-Hosted Solution**
+
+Burner Pod is designed to be **self-hosted**. There is no public instance or hosted service—you run it on your own server, VPS, or local machine. This ensures:
+- **Complete privacy:** Your data never touches third-party servers
+- **Full control:** Customize, modify, or restrict access as needed
+- **Easy deployment:** One Docker command or simple Go binary to get started
+
+Whether you deploy it on a Raspberry Pi at home, a $5/month VPS, or your local network, you maintain complete ownership of your conversations.
+
 <p align="right">(<a href="#burner-pod">back to top</a>)</p>
 
 ## Key Features
@@ -120,6 +129,20 @@ _Main chat interface with active room and encryption enabled._
 <p align="right">(<a href="#burner-pod">back to top</a>)</p>
 
 ### Docker Deployment
+
+**Option 1: Pull Pre-built Image (Recommended)**
+
+No need to build! Pull the official image from Docker Hub:
+
+```bash
+# Pull the image
+docker pull deakr/burner-pod:v0.1
+
+# Run the container
+docker run -d -p 8080:8080 --name burner-app deakr/burner-pod:v0.1
+```
+
+**Option 2: Build from Source**
 
 1. **Build the Docker image:**
    ```bash
