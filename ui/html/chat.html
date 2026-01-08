@@ -77,7 +77,7 @@
         <div class="room-header">
             <h1 id="room-title" class="room-title">Room</h1>
             
-            <input type="password" id="room-key" class="room-key-input" placeholder="🔒 Secret Key">
+            <input type="password" id="room-key" class="room-key-input" placeholder="🔒 Secret Key" oninput="reprocessMessages()">
         </div>
 
         <ul id="messages"></ul>
@@ -193,6 +193,7 @@
 
         /**
          * Handles incoming messages from the WebSocket.
+         * Stores raw ciphertext for later decryption attempts.
          * Decrypts messages if a room key is set, renders markdown, and sanitizes HTML.
          * System messages are displayed with special styling.
          */
@@ -212,10 +213,18 @@
                 return;
             }
 
+            // Store the raw ciphertext in a data attribute for later decryption
+            messageItem.setAttribute('data-enc', data.text);
+            messageItem.setAttribute('data-username', data.username);
+
             let displayText = data.text;
             if (data.text.startsWith("ENC::")) {
                  if (password) {
-                     displayText = await decryptMessage(data.text, password);
+                     try {
+                         displayText = await decryptMessage(data.text, password);
+                     } catch (e) {
+                         displayText = "🔒 <em>Decryption Failed</em>";
+                     }
                  } else {
                      displayText = "🔒 <em>Encrypted Message</em>";
                  }
@@ -263,6 +272,73 @@
 
         const form = document.getElementById('form');
         const input = document.getElementById('input');
+
+        /**
+         * Reprocesses all encrypted messages in the chat history.
+         * Called when the user enters or changes the room key.
+         * Attempts to decrypt previously locked messages with the current key.
+         */
+        async function reprocessMessages() {
+            // Get the current key from the input box
+            const keyInput = document.getElementById('room-key').value;
+            if (!keyInput) return; // Do nothing if box is empty
+
+            // Find all message list items in the chat
+            const messageItems = document.querySelectorAll('#messages li');
+
+            // Loop through them one by one
+            for (let msgItem of messageItems) {
+                // Get the hidden raw text we saved earlier
+                const rawText = msgItem.getAttribute('data-enc');
+                const username = msgItem.getAttribute('data-username');
+                
+                // Only process if it is actually encrypted
+                if (rawText && rawText.startsWith("ENC::")) {
+                    try {
+                        // Attempt to decrypt with the NEW key
+                        const decrypted = await decryptMessage(rawText, keyInput);
+                        
+                        // Process the decrypted text through markdown
+                        const rawHtml = marked.parse(decrypted);
+                        const safeHtml = DOMPurify.sanitize(rawHtml);
+                        const safeUsername = DOMPurify.sanitize(username);
+                        
+                        // Update the display with decrypted content
+                        msgItem.innerHTML = `
+                            <div style="margin: 0; padding: 0; line-height: 1.2;">
+                                <strong style="display: block; margin: 0; padding: 0; font-size: 0.9em;">${safeUsername}</strong>
+                                <div style="margin: 0; padding: 0;">${safeHtml}</div>
+                            </div>
+                        `;
+                        
+                        // Clean up paragraph margins
+                        const paragraphs = msgItem.querySelectorAll('p');
+                        paragraphs.forEach(p => {
+                            p.style.margin = '0';
+                            p.style.padding = '0';
+                            p.style.display = 'block';
+                        });
+                        
+                        // Update links
+                        const links = msgItem.querySelectorAll('a');
+                        links.forEach(link => {
+                            link.target = '_blank';
+                            link.style.color = '#00ff00';
+                        });
+                        
+                        // Optional: Flash green to show it worked
+                        msgItem.style.borderLeft = '2px solid #00ff00';
+                        setTimeout(() => {
+                            msgItem.style.borderLeft = '';
+                        }, 500);
+                        
+                    } catch (e) {
+                        // Wrong key? Keep it locked.
+                        console.log("Still can't decrypt this message.");
+                    }
+                }
+            }
+        }
 
         /**
          * Handles message form submission.
