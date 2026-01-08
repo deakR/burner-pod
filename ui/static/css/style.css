@@ -186,9 +186,10 @@ label {
 }
 
 #messages li {
-    padding: 10px 0;
-    border-bottom: 1px solid #1a1a1a;
-    line-height: 1.5;
+    padding: 4px 0;
+    border-bottom: none;
+    line-height: 1.2;
+    margin-bottom: 8px;
 }
 
 #messages li:last-child {
@@ -198,7 +199,7 @@ label {
 #messages li strong {
     color: #fff;
     font-weight: 600;
-    margin-right: 8px;
+    margin-right: 0;
 }
 
 /* System message styling */

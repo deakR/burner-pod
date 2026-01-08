@@ -186,6 +186,9 @@
         // Log successful WebSocket connection
         ws.onopen = function (event) {
             console.log("Connected to chat.");
+            // Scroll to bottom to show latest messages
+            const messages = document.getElementById('messages');
+            messages.scrollTop = messages.scrollHeight;
         };
 
         /**
@@ -201,11 +204,11 @@
             const messageItem = document.createElement('li');
 
             if (data.username === "System") {
-                messageItem.innerHTML = `<div style="text-align: center; color: #666; font-size: 0.8em; font-style: italic; margin: 5px 0;">${data.text}</div>`;
+                messageItem.innerHTML = `<div style="text-align: center; color: #666; font-size: 0.65em; font-style: italic; margin: 0; padding: 0; line-height: 1.2;">${data.text}</div>`;
                 messageItem.style.background = "transparent"; 
                 messageItem.style.border = "none";
                 messages.appendChild(messageItem);
-                window.scrollTo(0, document.body.scrollHeight);
+                messages.scrollTop = messages.scrollHeight;
                 return;
             }
 
@@ -222,7 +225,20 @@
             const safeHtml = DOMPurify.sanitize(rawHtml);
             const safeUsername = DOMPurify.sanitize(data.username);
 
-            messageItem.innerHTML = `<strong>${safeUsername}:</strong> ${safeHtml}`;
+            messageItem.innerHTML = `
+                <div style="margin: 0; padding: 0; line-height: 1.2;">
+                    <strong style="display: block; margin: 0; padding: 0; font-size: 0.9em;">${safeUsername}</strong>
+                    <div style="margin: 0; padding: 0;">${safeHtml}</div>
+                </div>
+            `;
+            
+            // Remove any <p> tag margins that marked.js might add
+            const paragraphs = messageItem.querySelectorAll('p');
+            paragraphs.forEach(p => {
+                p.style.margin = '0';
+                p.style.padding = '0';
+                p.style.display = 'block';
+            });
             
             const links = messageItem.querySelectorAll('a');
             links.forEach(link => {
@@ -231,7 +247,7 @@
             });
 
             messages.appendChild(messageItem);
-            window.scrollTo(0, document.body.scrollHeight);
+            messages.scrollTop = messages.scrollHeight;
         };
 
         /**
