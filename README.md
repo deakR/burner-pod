@@ -10,8 +10,6 @@
 <br>
 [![Go Version](https://img.shields.io/badge/go-1.25+-00ADD8.svg?style=flat-square)](https://golang.org/dl/)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg?style=flat-square)](https://www.docker.com/)
-[![Release Version](https://img.shields.io/github/v/release/deakR/burner-pod?style=flat-square)](https://github.com/deakR/burner-pod/releases/latest)
-<br>
 [![GitHub Repo stars](https://img.shields.io/github/stars/deakR/burner-pod?style=social)](https://github.com/deakR/burner-pod/stargazers)
 [![GitHub Repo forks](https://img.shields.io/github/forks/deakR/burner-pod?style=social)](https://github.com/deakR/burner-pod/forks)
 
@@ -45,9 +43,19 @@ Burner Pod is a minimalist, real-time chat application built with Go and WebSock
 
 ## Overview
 
-Burner Pod provides a private, free, and straightforward way to have temporary conversations without any permanence. No cloud accounts, no data collection, no message history—just instant, ephemeral chat rooms.
+Burner Pod provides temporary conversations without permanence. No accounts, no data collection, no message history, just instant, ephemeral chat rooms built with Go, WebSockets, and client-side encryption. All data exists only in memory; when a room expires, everything is gone.
 
-It uses a modern stack with Go for the backend, WebSockets for real-time communication, and vanilla JavaScript with Web Crypto API for client-side encryption. All data exists only in memory when a room expires or the server restarts, everything is gone. Perfect for privacy conscious users who want zero-trace communication.
+**What's the need for this?**
+- Quick, temporary communication without leaving a trace
+- Instant chat rooms that automatically expire
+- Perfect for quick collaborations, temporary support channels, or private conversations
+- No permanent storage of sensitive information
+
+**How does this work?**
+- Uses **WebSockets** for real-time bidirectional communication between clients and the Go server
+- Creates a Chat Room abstraction with automatic expiration
+- Multiple users communicate until the room self-destructs
+- Join existing rooms with a room code or create a new one with customizable duration
 
 <p align="right">(<a href="#burner-pod">back to top</a>)</p>
 
@@ -68,12 +76,12 @@ It uses a modern stack with Go for the backend, WebSockets for real-time communi
 
 ## Previews
 
+![Lobby Page](./previews/lobby.png)
+_Room creation and public room discovery._
+
 ![Burner Pod Chat Interface](./previews/chat-preview.png)
 _Main chat interface with active room and encryption enabled._
 
-<!-- Add more preview images here -->
-<!-- ![Lobby Page](./previews/lobby.png) -->
-<!-- _Room creation and public room discovery._ -->
 
 <p align="right">(<a href="#burner-pod">back to top</a>)</p>
 
@@ -227,7 +235,7 @@ For maximum privacy:
 - **Backend:** Go 1.25+ with [Gorilla WebSocket](https://github.com/gorilla/websocket)
 - **Frontend:** Vanilla JavaScript, [marked.js](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify)
 - **Encryption:** Web Crypto API (PBKDF2 + AES-GCM)
-- **Styling:** Pure CSS with mobile-first design
+- **Styling:** Pure CSS
 - **Development:** [Air](https://github.com/cosmtrek/air) for hot-reload
 
 <p align="right">(<a href="#burner-pod">back to top</a>)</p>
