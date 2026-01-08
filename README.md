@@ -355,15 +355,6 @@ Server → Client:
 
 <p align="right">(<a href="#burner-pod">back to top</a>)</p>
 
-## Detailed Documentation
-
-For comprehensive information, please refer to:
-
-- **[ GitHub Issues](https://github.com/deakR/burner-pod/issues)** - Report bugs or request features
-- **[💬 GitHub Discussions](https://github.com/deakR/burner-pod/discussions)** - Ask questions or share ideas
-
-<p align="right">(<a href="#burner-pod">back to top</a>)</p>
-
 ## Contributing
 
 Contributions are highly encouraged and welcome! Whether it's reporting a bug, suggesting a feature, or submitting code changes, your help is appreciated.
