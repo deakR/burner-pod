@@ -64,7 +64,7 @@ function initializeCreateForm() {
 
 /**
  * Handles room join form submission.
- * Redirects user to the chat page with the specified room code and username.
+ * Parses pasted URLs or raw room codes, retaining zero-knowledge hash keys.
  */
 function initializeJoinForm() {
     const joinForm = document.getElementById('join-form');
@@ -72,11 +72,31 @@ function initializeJoinForm() {
 
     joinForm.addEventListener('submit', function (event) {
         event.preventDefault();
-        const room = document.getElementById('room-input').value;
-        let user = document.getElementById('username').value;
-        if (!user) user = "Anonymous";
-        
-        window.location.href = `/chat?room=${encodeURIComponent(room)}&user=${encodeURIComponent(user)}`;
+        let room = document.getElementById('room-input').value.trim();
+        let user = document.getElementById('username').value.trim() || "Anonymous";
+        let keyHash = "";
+
+        if (room.startsWith("http://") || room.startsWith("https://") || room.includes("/chat?") || room.startsWith("/r/")) {
+            try {
+                const parsed = new URL(room, window.location.origin);
+                keyHash = parsed.hash;
+                if (parsed.searchParams.has('room')) {
+                    room = parsed.searchParams.get('room');
+                } else if (parsed.pathname.startsWith('/r/')) {
+                    room = parsed.pathname.substring(3);
+                }
+            } catch (e) {
+                // Keep room as-is if parsing fails
+            }
+        }
+
+        if (room.includes("#")) {
+            const parts = room.split("#");
+            room = parts[0];
+            keyHash = "#" + parts.slice(1).join("#");
+        }
+
+        window.location.href = `/chat?room=${encodeURIComponent(room)}&user=${encodeURIComponent(user)}${keyHash}`;
     });
 }
 
@@ -97,8 +117,7 @@ function createRoomChip(room) {
     `;
 
     chip.onclick = () => {
-        let user = document.getElementById('username').value;
-        if (!user) user = "Anonymous";
+        let user = document.getElementById('username').value.trim() || "Anonymous";
         window.location.href = `/chat?room=${encodeURIComponent(room.id)}&user=${encodeURIComponent(user)}`;
     };
 
@@ -110,10 +129,11 @@ function createRoomChip(room) {
 
 /**
  * Fetches and displays the list of public rooms from the server.
- * Creates clickable room chips showing room ID and current participant count.
- * Automatically refreshes every 5 seconds to show live room status.
+ * Skips polling when the browser tab is hidden.
  */
 function loadActiveRooms() {
+    if (document.hidden) return;
+
     fetch('/api/rooms')
         .then(response => response.json())
         .then(rooms => {

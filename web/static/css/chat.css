@@ -1,60 +1,108 @@
 /* chat.css - Styles specific to the chat page */
 
-/* Default Desktop Style (The Big Banner) */
 .room-header {
     border: 1px solid #fff;
-    padding: 15px;
+    padding: 12px 15px;
     margin-bottom: 20px;
-    position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
 }
 
 .room-title {
     margin: 0;
-    font-size: 2rem;
-    text-align: center;
+    font-size: 1.6rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 60%; /* Prevents text from hitting the key input */
+}
+
+.room-timer {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #00ff00;
+    padding: 3px 8px;
+    border: 1px solid #333;
+    border-radius: 3px;
+    background: #0a0a0a;
+    white-space: nowrap;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.share-btn {
+    background: #000;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 5px 10px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 3px;
+}
+
+.share-btn:hover {
+    border-color: #00ff00;
+    color: #00ff00;
 }
 
 .room-key-input {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
     width: 120px;
-    padding: 5px;
+    padding: 5px 8px;
     background: #000;
     border: 1px solid #333;
-    color: #0f0;
+    color: #00ff00;
     font-family: monospace;
     font-size: 0.8rem;
+    border-radius: 3px;
+}
+
+.message-text {
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 /* Mobile Style (Stacked & Clean) */
 @media (max-width: 600px) {
     .room-header {
-        flex-direction: column; /* Stack them vertical */
-        gap: 15px;
-        padding: 15px 10px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 12px 10px;
+    }
+
+    .header-left {
+        justify-content: space-between;
     }
 
     .room-title {
-        font-size: 1.4rem; /* Smaller text */
-        white-space: normal; /* Allow wrapping */
-        word-break: break-all; /* Break long random IDs */
-        max-width: 100%;
-        position: static;
+        font-size: 1.3rem;
+    }
+
+    .header-actions {
+        width: 100%;
+    }
+
+    .share-btn {
+        flex-shrink: 0;
     }
 
     .room-key-input {
-        position: static; /* Stop floating */
-        transform: none;
-        width: 100%; /* Full width for easy tapping */
-        text-align: center;
+        flex-grow: 1;
+        width: auto;
     }
 }

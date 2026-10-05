@@ -36,6 +36,12 @@ func main() {
 	})
 
 	mux.HandleFunc("/ws/", handlers.NewWebSocketHandler(h))
+	mux.HandleFunc("GET /ws/{roomID}", handlers.NewWebSocketHandler(h))
+
+	// Shortlink route: /r/{roomID} -> /chat?room={roomID}
+	mux.HandleFunc("GET /r/{roomID}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/chat?room="+r.PathValue("roomID"), http.StatusFound)
+	})
 
 	roomCreateHandler := handlers.NewRoomCreateHandler(h)
 	mux.HandleFunc("/rooms", roomCreateHandler)

@@ -9,8 +9,9 @@ import (
 
 // ChatMessage represents a single chat message in a room.
 type ChatMessage struct {
-	Username string `json:"username"`
-	Text     string `json:"text"`
+	Username  string `json:"username"`
+	Text      string `json:"text"`
+	ExpiresAt int64  `json:"expiresAt,omitempty"`
 }
 
 // Client represents a connected websocket client in a room.

@@ -1,33 +1,67 @@
 /**
  * chat.js - Chat page functionality (chat.html)
- * Handles message display, encryption, and real-time updates.
+ * Handles message display, encryption, countdown timer, and real-time updates.
  */
 
 let ws = null;
 let username = "Anonymous";
 let roomName = "";
+let roomExpiry = 0;
+let timerInterval = null;
 
 /**
- * Renders a chat message in the message list.
- * Handles both regular and encrypted messages, applies markdown and sanitization.
- * @param {Object} data - Message data with username and text properties
+ * Updates the countdown timer until room self-destructs.
+ */
+function updateTimer() {
+    if (!roomExpiry) return;
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = roomExpiry - now;
+    const timerEl = document.getElementById('room-timer');
+    if (!timerEl) return;
+
+    if (remaining <= 0) {
+        timerEl.textContent = "⏱️ Expired";
+        timerEl.style.color = "#ff4444";
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        handleDisconnect();
+        return;
+    }
+
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    timerEl.textContent = `⏱️ ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    if (remaining <= 60) {
+        timerEl.style.color = "#ff4444";
+    } else if (remaining <= 300) {
+        timerEl.style.color = "#ffbb00";
+    }
+}
+
+/**
+ * Renders a chat message safely into the message list.
+ * @param {Object} data - Message data with username, text, and optional expiresAt properties
  * @param {string} password - Current room key for decryption (optional)
  */
 async function renderMessage(data, password = "") {
     const messages = document.getElementById('messages');
     const messageItem = document.createElement('li');
 
-    // Handle system messages differently
+    // Handle system notifications
     if (data.username === "System") {
-        messageItem.innerHTML = `<div style="text-align: center; color: #666; font-size: 0.65em; font-style: italic; margin: 0; padding: 0; line-height: 1.2;">${data.text}</div>`;
-        messageItem.style.background = "transparent"; 
+        messageItem.style.background = "transparent";
         messageItem.style.border = "none";
+        const sysDiv = document.createElement('div');
+        sysDiv.style.cssText = "text-align: center; color: #666; font-size: 0.65em; font-style: italic; margin: 0; padding: 0; line-height: 1.2;";
+        sysDiv.textContent = data.text;
+        messageItem.appendChild(sysDiv);
         messages.appendChild(messageItem);
         messages.scrollTop = messages.scrollHeight;
         return;
     }
 
-    // Store the raw ciphertext in a data attribute for later decryption
     messageItem.setAttribute('data-enc', data.text);
     messageItem.setAttribute('data-username', data.username);
 
@@ -37,37 +71,27 @@ async function renderMessage(data, password = "") {
             try {
                 displayText = await decryptMessage(data.text, password, roomName);
             } catch (e) {
-                displayText = "🔒 <em>Decryption Failed</em>";
+                displayText = "🔒 Decryption Failed";
             }
         } else {
-            displayText = "🔒 <em>Encrypted Message</em>";
+            displayText = "🔒 Encrypted Message";
         }
     }
 
-    const rawHtml = marked.parse(displayText);
-    const safeHtml = DOMPurify.sanitize(rawHtml);
-    const safeUsername = DOMPurify.sanitize(data.username);
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = "margin: 0; padding: 0; line-height: 1.2;";
 
-    messageItem.innerHTML = `
-        <div style="margin: 0; padding: 0; line-height: 1.2;">
-            <strong style="display: block; margin: 0; padding: 0; font-size: 0.9em;">${safeUsername}</strong>
-            <div style="margin: 0; padding: 0;">${safeHtml}</div>
-        </div>
-    `;
-    
-    // Remove any <p> tag margins that marked.js might add
-    const paragraphs = messageItem.querySelectorAll('p');
-    paragraphs.forEach(p => {
-        p.style.margin = '0';
-        p.style.padding = '0';
-        p.style.display = 'block';
-    });
-    
-    const links = messageItem.querySelectorAll('a');
-    links.forEach(link => {
-        link.target = '_blank';
-        link.style.color = '#00ff00';
-    });
+    const userEl = document.createElement('strong');
+    userEl.style.cssText = "display: block; margin: 0; padding: 0; font-size: 0.9em;";
+    userEl.textContent = data.username;
+
+    const contentEl = document.createElement('div');
+    contentEl.className = "message-text";
+    contentEl.textContent = displayText;
+
+    wrapper.appendChild(userEl);
+    wrapper.appendChild(contentEl);
+    messageItem.appendChild(wrapper);
 
     messages.appendChild(messageItem);
     messages.scrollTop = messages.scrollHeight;
@@ -76,7 +100,6 @@ async function renderMessage(data, password = "") {
 /**
  * Reprocesses all encrypted messages in the chat history.
  * Called when the user enters or changes the room key.
- * Attempts to decrypt previously locked messages with the current key.
  */
 async function reprocessMessages() {
     const keyInput = document.getElementById('room-key').value;
@@ -86,44 +109,19 @@ async function reprocessMessages() {
 
     for (let msgItem of messageItems) {
         const rawText = msgItem.getAttribute('data-enc');
-        const username = msgItem.getAttribute('data-username');
-        
         if (rawText && rawText.startsWith("ENC::")) {
             try {
                 const decrypted = await decryptMessage(rawText, keyInput, roomName);
-                
-                const rawHtml = marked.parse(decrypted);
-                const safeHtml = DOMPurify.sanitize(rawHtml);
-                const safeUsername = DOMPurify.sanitize(username);
-                
-                msgItem.innerHTML = `
-                    <div style="margin: 0; padding: 0; line-height: 1.2;">
-                        <strong style="display: block; margin: 0; padding: 0; font-size: 0.9em;">${safeUsername}</strong>
-                        <div style="margin: 0; padding: 0;">${safeHtml}</div>
-                    </div>
-                `;
-                
-                const paragraphs = msgItem.querySelectorAll('p');
-                paragraphs.forEach(p => {
-                    p.style.margin = '0';
-                    p.style.padding = '0';
-                    p.style.display = 'block';
-                });
-                
-                const links = msgItem.querySelectorAll('a');
-                links.forEach(link => {
-                    link.target = '_blank';
-                    link.style.color = '#00ff00';
-                });
-                
-                // Flash green to show successful decryption
+                const contentEl = msgItem.querySelector('.message-text');
+                if (contentEl) {
+                    contentEl.textContent = decrypted;
+                }
                 msgItem.style.borderLeft = '2px solid #00ff00';
                 setTimeout(() => {
                     msgItem.style.borderLeft = '';
                 }, 500);
-                
             } catch (e) {
-                console.log("Still can't decrypt this message.");
+                // Key does not match
             }
         }
     }
@@ -131,26 +129,26 @@ async function reprocessMessages() {
 
 /**
  * Handles WebSocket disconnection (room expiration or network issues).
- * Displays overlay notification and disables the message input.
  */
 function handleDisconnect() {
-    console.log("Connection closed.");
-    document.getElementById('expired-overlay').style.display = 'flex';
-    document.querySelector('.chat-container').style.filter = 'blur(5px)';
-    document.getElementById('input').disabled = true;
+    const overlay = document.getElementById('expired-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    const container = document.querySelector('.chat-container');
+    if (container) container.style.filter = 'blur(5px)';
+    const input = document.getElementById('input');
+    if (input) input.disabled = true;
 }
 
 /**
  * Handles message form submission.
- * Encrypts the message if a room key is provided, then sends via WebSocket.
  */
 async function handleMessageSubmit(event) {
     event.preventDefault();
-    const password = document.getElementById('room-key').value;
     const input = document.getElementById('input');
-    
     let finalText = input.value;
+    if (!finalText.trim()) return;
 
+    const password = document.getElementById('room-key').value;
     if (password) {
         finalText = await encryptMessage(finalText, password, roomName);
     }
@@ -160,11 +158,37 @@ async function handleMessageSubmit(event) {
 }
 
 /**
+ * Sets up 1-click room link sharing with optional zero-knowledge hash.
+ */
+function initializeShareButton() {
+    const shareBtn = document.getElementById('share-btn');
+    if (!shareBtn) return;
+
+    shareBtn.addEventListener('click', () => {
+        const key = document.getElementById('room-key').value;
+        const url = new URL(`/r/${encodeURIComponent(roomName)}`, window.location.origin);
+        if (key) {
+            url.hash = encodeURIComponent(key);
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url.href).then(() => {
+                const original = shareBtn.textContent;
+                shareBtn.textContent = "✓ Copied!";
+                setTimeout(() => { shareBtn.textContent = original; }, 1500);
+            }).catch(() => {
+                prompt("Copy room link:", url.href);
+            });
+        } else {
+            prompt("Copy room link:", url.href);
+        }
+    });
+}
+
+/**
  * Initializes the chat page.
- * Extracts room parameters, establishes WebSocket connection, and sets up event handlers.
  */
 function initializeChat() {
-    // Extract room name and username from URL query parameters
     const urlParams = new URLSearchParams(window.location.search);
     roomName = urlParams.get('room');
     username = urlParams.get('user') || "Anonymous";
@@ -177,30 +201,50 @@ function initializeChat() {
     document.getElementById('room-title').innerText = `Room: ${roomName}`;
     document.title = `Chat - ${roomName}`;
 
+    // Read zero-knowledge secret key from URL hash if provided
+    if (window.location.hash && window.location.hash.length > 1) {
+        const secret = decodeURIComponent(window.location.hash.substring(1));
+        const keyInput = document.getElementById('room-key');
+        if (keyInput) keyInput.value = secret;
+    }
+
+    window.addEventListener('hashchange', () => {
+        if (window.location.hash && window.location.hash.length > 1) {
+            document.getElementById('room-key').value = decodeURIComponent(window.location.hash.substring(1));
+            reprocessMessages();
+        }
+    });
+
     // Establish WebSocket connection
     ws = createWebSocket(roomName, username);
 
-    ws.onopen = function (event) {
-        console.log("Connected to chat.");
+    ws.onopen = function () {
         const messages = document.getElementById('messages');
         messages.scrollTop = messages.scrollHeight;
     };
 
     ws.onmessage = async function (event) {
         const data = JSON.parse(event.data);
+        if (data.expiresAt && !roomExpiry) {
+            roomExpiry = data.expiresAt;
+            updateTimer();
+            if (!timerInterval) {
+                timerInterval = setInterval(updateTimer, 1000);
+            }
+        }
         const password = document.getElementById('room-key').value;
         await renderMessage(data, password);
     };
 
     ws.onclose = handleDisconnect;
 
-    // Set up form submission
     const form = document.getElementById('form');
     form.addEventListener('submit', handleMessageSubmit);
 
-    // Set up room key input handler for reprocessing messages
     const roomKeyInput = document.getElementById('room-key');
     roomKeyInput.addEventListener('input', reprocessMessages);
+
+    initializeShareButton();
 }
 
 // Auto-initialize when DOM is ready

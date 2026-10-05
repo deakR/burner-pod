@@ -26,8 +26,10 @@ func NewWebSocketHandler(h *hub.Hub) http.HandlerFunc {
 // Upgrades HTTP connection to WebSocket, processes tripcode authentication if username contains '#',
 // registers the client with the hub, and starts per-client write and read pumps.
 func ServeWs(h *hub.Hub, w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/ws/")
-	roomID := path
+	roomID := r.PathValue("roomID")
+	if roomID == "" {
+		roomID = strings.TrimPrefix(r.URL.Path, "/ws/")
+	}
 
 	if err := security.ValidateRoomID(roomID); err != nil {
 		http.Error(w, "Invalid room ID: "+err.Error(), http.StatusBadRequest)
@@ -51,7 +53,8 @@ func ServeWs(h *hub.Hub, w http.ResponseWriter, r *http.Request) {
 		Username: username,
 	}
 
-	if !h.RegisterClient(client) {
+	expiry, ok := h.RegisterClient(client)
+	if !ok {
 		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Room Expired"))
 		conn.Close()
 		return
@@ -60,8 +63,9 @@ func ServeWs(h *hub.Hub, w http.ResponseWriter, r *http.Request) {
 	h.Broadcast <- hub.BroadcastMsg{
 		RoomID: roomID,
 		Message: hub.ChatMessage{
-			Username: "System",
-			Text:     username + " has joined the room.",
+			Username:  "System",
+			Text:      username + " has joined the room.",
+			ExpiresAt: expiry,
 		},
 	}
 

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -7,8 +7,6 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/chat.css">
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="/static/js/crypto.js"></script>
     <script src="/static/js/websocket.js"></script>
 </head>
@@ -17,9 +15,14 @@
 
     <div class="container chat-container">
         <div class="room-header">
-            <h1 id="room-title" class="room-title">Room</h1>
-            
-            <input type="password" id="room-key" class="room-key-input" placeholder="🔒 Secret Key">
+            <div class="header-left">
+                <h1 id="room-title" class="room-title">Room</h1>
+                <span id="room-timer" class="room-timer" title="Time until self-destruction">⏱️ --:--</span>
+            </div>
+            <div class="header-actions">
+                <button type="button" id="share-btn" class="share-btn" title="Copy invite link">🔗 Share</button>
+                <input type="password" id="room-key" class="room-key-input" placeholder="🔒 Secret Key">
+            </div>
         </div>
 
         <ul id="messages"></ul>

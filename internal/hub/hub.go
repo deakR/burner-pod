@@ -60,14 +60,14 @@ func (h *Hub) CreateRoom(id string, ttl time.Duration, isPublic bool) bool {
 }
 
 // RegisterClient adds a client to its target room and sends message history.
-// Returns false if the room does not exist.
-func (h *Hub) RegisterClient(c *Client) bool {
+// Returns room expiry timestamp (unix seconds) and true, or (0, false) if the room does not exist.
+func (h *Hub) RegisterClient(c *Client) (int64, bool) {
 	h.Mu.Lock()
 	defer h.Mu.Unlock()
 
 	room, exists := h.Rooms[c.RoomID]
 	if !exists {
-		return false
+		return 0, false
 	}
 	room.Clients[c] = true
 
@@ -77,7 +77,7 @@ func (h *Hub) RegisterClient(c *Client) bool {
 		default:
 		}
 	}
-	return true
+	return room.Expiry.Unix(), true
 }
 
 // UnregisterClient removes a client from its target room and closes its send channel.
