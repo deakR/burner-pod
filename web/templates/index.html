@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Burner Pod - Lobby</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/lobby.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Burner Pod</h1>
+
+        <input type="text" id="username" placeholder="Enter your Display Name" required
+            style="max-width: 400px; margin: 0 auto 15px auto; display: block;">
+
+        <div class="actions-split">
+            <div class="action-col">
+                <h2>Create Room</h2>
+                <form id="create-form" action="/rooms" method="POST">
+                    <label>Room Duration:</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="number" id="duration-number" min="1" value="1" style="flex: 1;">
+                        <select id="duration-unit" style="flex: 1;">
+                            <option value="1">Second(s)</option>
+                            <option value="60" selected>Minute(s)</option>
+                            <option value="3600">Hour(s)</option>
+                            <option value="86400">Day(s)</option>
+                        </select>
+                    </div>
+
+                    <label>Custom Name (Optional):</label>
+                    <input type="text" name="code" placeholder="e.g. friday-hangout" pattern="[A-Za-z0-9-_]+"
+                        title="Letters, numbers, dashes only">
+
+                    <div
+                        style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border: 1px solid #333; padding: 10px;">
+                        <input type="checkbox" id="public-check" style="width: auto; margin: 0;">
+                        <label for="public-check" style="margin: 0; cursor: pointer; color: #fff;">Make Room
+                            Public</label>
+                    </div>
+
+                    <input type="hidden" name="ttl" id="ttl-final" value="60">
+                    <input type="hidden" name="user" id="create-user">
+                    <input type="hidden" name="public" id="public-final" value="false">
+
+                    <button type="submit">Create New Room</button> 
+                </form>
+            </div>
+
+            <div class="separator-vertical"></div>
+
+            <div class="action-col">
+                <h2>Join Room</h2>
+                <form id="join-form">
+                    <label>Room Code:</label>
+                    <input type="text" id="room-input" placeholder="Enter code..." required />
+                    <button class="secondary">Join Existing</button>
+                </form>
+                <div class="separator-horizontal" style="height: 1px; background: #333; margin: 15px 0;"></div>
+
+                <h2 style="font-size: 0.95rem; margin-bottom: 10px; border-bottom: none;">LIVE PUBLIC ROOM(S)</h2>
+                <div id="active-rooms-list" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    <p style="color: #666; font-size: 0.9rem;">Scanning network...</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #222; font-size: 0.7rem; color: #666; line-height: 1.3;">
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between;">
+                
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: #444; font-size: 0.75rem; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;">🕵️ Verified Identity</h3>
+                    <p style="margin: 0;">
+                        Don't want imposters? Add a <strong>#password</strong> to your username (e.g., <code style="color: #0f0;">Rohith#secret123</code>). 
+                        The server will generate a unique, mathematical signature (Tripcode) so friends know it's really you.
+                    </p>
+                </div>
+
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: #444; font-size: 0.75rem; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;">🔐 Paranoid Mode</h3>
+                    <p style="margin: 0;">
+                        Trust no one? Enter a <strong>Room Key</strong> inside the chat to enable <span style="color: #aaa;">AES-GCM Encryption</span>. 
+                        Messages are locked in your browser before sending. Even the server admin cannot read them.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/static/js/lobby.js"></script>
+</body>
+
+</html>

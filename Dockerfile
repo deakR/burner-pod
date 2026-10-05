@@ -14,7 +14,7 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/burner-pod .
-COPY ui ./ui
+COPY web ./web
 
 EXPOSE 8080
 

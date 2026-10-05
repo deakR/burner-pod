@@ -52,3 +52,7 @@ desktop.ini
 
 # Debug files
 __debug_bin
+
+# Local references
+references/
+tests/

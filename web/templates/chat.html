@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Burner Pod - Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="/static/js/crypto.js"></script>
+    <script src="/static/js/websocket.js"></script>
+</head>
+
+<body>
+
+    <div class="container chat-container">
+        <div class="room-header">
+            <h1 id="room-title" class="room-title">Room</h1>
+            
+            <input type="password" id="room-key" class="room-key-input" placeholder="🔒 Secret Key">
+        </div>
+
+        <ul id="messages"></ul>
+
+        <form id="form" style="display: flex; gap: 10px; margin-bottom: 0;">
+            <input type="text" id="input" autocomplete="off" placeholder="Type a message..." required
+                style="margin-bottom: 0;">
+            <button style="width: auto; margin-bottom: 0;">Send</button>
+        </form>
+    </div>
+
+    <div id="expired-overlay">
+        <h1>Room Expired</h1>
+        <p>This conversation has self-destructed.</p>
+        <a href="/">
+            <button style="width: auto; padding: 15px 30px;">Back to Lobby</button>
+        </a>
+    </div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+
+</html>

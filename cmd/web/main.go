@@ -1,83 +1,68 @@
 package main
 
 import (
-	"burner-pod/internal/handlers"
-	"burner-pod/internal/utils"
-	"encoding/json"
+	"context"
 	"log"
 	"net/http"
-	"strconv"
+	"os"
+	"os/signal"
 	"time"
+
+	"burner-pod/internal/handlers"
+	"burner-pod/internal/hub"
 )
 
 func main() {
-	hub := handlers.NewHub()
-	go hub.Run()
-	go hub.StartCleanup()
-
-	fileServer := http.FileServer(http.Dir("./ui/static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fileServer))
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./ui/html/index.html")
-	})
-
-	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./ui/html/chat.html")
-	})
-
-	http.HandleFunc("/ws/", hub.ServeWs)
-
-	http.HandleFunc("/create", func(w http.ResponseWriter, r *http.Request) {
-		roomID := r.URL.Query().Get("code")
-
-		if roomID == "" {
-			var err error
-			roomID, err = utils.GenerateRoomID()
-			if err != nil {
-				http.Error(w, "Failed to generate room ID", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		isPublic := r.URL.Query().Get("public") == "true"
-
-		ttlStr := r.URL.Query().Get("ttl")
-		seconds, err := strconv.Atoi(ttlStr)
-		if err != nil || seconds < 1 {
-			seconds = 60
-		}
-
-		username := r.URL.Query().Get("user")
-		if username == "" {
-			username = "Anonymous"
-		}
-
-		duration := time.Duration(seconds) * time.Second
-
-		success := hub.CreateRoom(roomID, duration, isPublic)
-		if !success {
-			http.Error(w, "Error: Room name '"+roomID+"' is already taken.", http.StatusConflict)
-			return
-		}
-
-		q := r.URL.Query()
-		q.Set("room", roomID)
-		q.Set("user", username)
-		targetUrl := "/chat?" + q.Encode()
-		http.Redirect(w, r, targetUrl, http.StatusFound)
-	})
-
-	http.HandleFunc("/api/rooms", func(w http.ResponseWriter, r *http.Request) {
-		rooms := hub.GetPublicRooms()
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(rooms)
-	})
-
-	log.Println("Starting server on http://localhost:8080")
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
+
+	h := hub.NewHub()
+	go h.Run()
+	go h.StartCleanup()
+
+	mux := http.NewServeMux()
+
+	fileServer := http.FileServer(http.Dir("./web/static"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/templates/index.html")
+	})
+
+	mux.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/templates/chat.html")
+	})
+
+	mux.HandleFunc("/ws/", handlers.NewWebSocketHandler(h))
+
+	roomCreateHandler := handlers.NewRoomCreateHandler(h)
+	mux.HandleFunc("/rooms", roomCreateHandler)
+	mux.HandleFunc("/create", roomCreateHandler)
+	mux.HandleFunc("/api/rooms", handlers.NewRoomsListHandler(h))
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	go func() {
+		log.Printf("Starting server on http://localhost:%s\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("ListenAndServe: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 2)
+	signal.Notify(quit)
+	<-quit
+	log.Println("Shutting down server gracefully...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+	log.Println("Server exiting")
 }
